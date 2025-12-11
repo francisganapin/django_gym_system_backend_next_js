@@ -47,29 +47,9 @@ export default function Header() {
         </div>
       </div>
 
-      {/* Center section - Search */}
-      <div className="flex-1 max-w-md mx-8">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-sidebar-accent-foreground" />
-          <input
-            type="text"
-            placeholder="Find Member..."
-            className="w-full bg-sidebar-accent text-sidebar-foreground placeholder:text-sidebar-accent-foreground pl-10 pr-4 py-2 rounded-md text-sm focus:outline-none border border-sidebar-border hover:border-sidebar-accent-foreground transition-colors"
-          />
-        </div>
-      </div>
 
-      {/* Right section - Profile and Settings */}
-      <div className="flex items-center gap-6">
-        {/* Notifications Bell with Unread Count */}
-        <div className="relative">
-          <Link href="/notifications" className="relative">
-            <Button variant="ghost" size="sm" className="h-8 px-3 text-sidebar-foreground hover:bg-sidebar-accent">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-            </Button>
-          </Link>
-        </div>
+
+      <div className="flex items-center gap-4">
 
         {/* Profile Dropdown */}
         <div className="relative">
@@ -129,31 +109,28 @@ export default function Header() {
                 <div className="flex gap-2 mt-2">
                   <button
                     onClick={() => applyTheme("dark")}
-                    className={`flex-1 px-2 py-1 text-xs rounded border ${
-                      theme === "dark"
-                        ? "bg-accent text-accent-foreground border-accent"
-                        : "border-sidebar-border text-sidebar-foreground hover:bg-sidebar"
-                    }`}
+                    className={`flex-1 px-2 py-1 text-xs rounded border ${theme === "dark"
+                      ? "bg-accent text-accent-foreground border-accent"
+                      : "border-sidebar-border text-sidebar-foreground hover:bg-sidebar"
+                      }`}
                   >
                     Dark
                   </button>
                   <button
                     onClick={() => applyTheme("light")}
-                    className={`flex-1 px-2 py-1 text-xs rounded border ${
-                      theme === "light"
-                        ? "bg-accent text-accent-foreground border-accent"
-                        : "border-sidebar-border text-sidebar-foreground hover:bg-sidebar"
-                    }`}
+                    className={`flex-1 px-2 py-1 text-xs rounded border ${theme === "light"
+                      ? "bg-accent text-accent-foreground border-accent"
+                      : "border-sidebar-border text-sidebar-foreground hover:bg-sidebar"
+                      }`}
                   >
                     Light
                   </button>
                   <button
                     onClick={() => applyTheme("green")}
-                    className={`flex-1 px-2 py-1 text-xs rounded border ${
-                      theme === "green"
-                        ? "bg-green-500 text-white border-green-500"
-                        : "border-sidebar-border text-sidebar-foreground hover:bg-sidebar"
-                    }`}
+                    className={`flex-1 px-2 py-1 text-xs rounded border ${theme === "green"
+                      ? "bg-green-500 text-white border-green-500"
+                      : "border-sidebar-border text-sidebar-foreground hover:bg-sidebar"
+                      }`}
                   >
                     Green
                   </button>
@@ -185,6 +162,6 @@ export default function Header() {
           )}
         </div>
       </div>
-    </header>
+    </header >
   )
 }

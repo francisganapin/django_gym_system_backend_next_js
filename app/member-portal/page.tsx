@@ -1,105 +1,53 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import Header from "@/components/header"
 import Sidebar from "@/components/sidebar"
+import { Member, PaginatedResponse } from "./types"
 import { Search, Eye, Edit2, Send, X } from "lucide-react"
 
+
+
 export default function MemberPortalPage() {
-  const [members, setMembers] = useState([
-    {
-      id: "MEM001",
-      firstName: "John",
-      lastName: "Doe",
-      email: "john@example.com",
-      phone: "+63 912 345 6789",
-      age: 28,
-      gender: "Male",
-      location: "Makati, Manila",
-      membership: "Premium",
-      avail: "Gym + Classes",
-      joinDate: "2024-01-15",
-      expiryDate: "2024-12-31",
-      status: "active",
-      monthlyFee: 2500,
-      paid: true,
-      image: "/male-member-profile.jpg",
-    },
-    {
-      id: "MEM002",
-      firstName: "Sarah",
-      lastName: "Johnson",
-      email: "sarah@example.com",
-      phone: "+63 923 456 7890",
-      age: 32,
-      gender: "Female",
-      location: "BGC, Taguig",
-      membership: "Standard",
-      avail: "Gym Access",
-      joinDate: "2024-02-20",
-      expiryDate: "2024-11-20",
-      status: "expired",
-      monthlyFee: 1500,
-      paid: true,
-      image: "/female-member-profile.jpg",
-    },
-    {
-      id: "MEM003",
-      firstName: "Mike",
-      lastName: "Chen",
-      email: "mike@example.com",
-      phone: "+63 934 567 8901",
-      age: 25,
-      gender: "Male",
-      location: "Quezon City",
-      membership: "Premium",
-      avail: "Gym + Classes + PT",
-      joinDate: "2024-03-10",
-      expiryDate: "2025-01-10",
-      status: "active",
-      monthlyFee: 3500,
-      paid: false,
-      image: "/male-member-profile.jpg",
-    },
-    {
-      id: "MEM004",
-      firstName: "Emma",
-      lastName: "Wilson",
-      email: "emma@example.com",
-      phone: "+63 945 678 9012",
-      age: 29,
-      gender: "Female",
-      location: "Ortigas, Pasig",
-      membership: "Basic",
-      avail: "Gym Access",
-      joinDate: "2024-04-05",
-      expiryDate: "2025-02-05",
-      status: "active",
-      monthlyFee: 999,
-      paid: true,
-      image: "/female-member-profile.jpg",
-    },
-    {
-      id: "MEM005",
-      firstName: "David",
-      lastName: "Martinez",
-      email: "david@example.com",
-      phone: "+63 956 789 0123",
-      age: 35,
-      gender: "Male",
-      location: "Las Piñas",
-      membership: "Premium",
-      avail: "Gym + Classes",
-      joinDate: "2024-01-25",
-      expiryDate: "2024-10-25",
-      status: "expired",
-      monthlyFee: 2500,
-      paid: false,
-      image: "/male-member-profile.jpg",
-    },
-  ])
+  const [members, setMembers] = useState<Member[]>([]);
+  const [nextPage, setNextPage] = useState<string | null>(null);
+  const [prevPage, setPrevPage] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState<number>(0)
+  const [totalPages, setTotalPages] = useState<number>(0)
+  const [loading, setLoading] = useState<boolean>(false);
+  const [totalMember, setTotalMembers] = useState<number>(0)
+  const [countExpired, setCountExpired] = useState<number>(0)
+  const [countActive, setCountActive] = useState<number>(0)
+
+  const fetchMembers = async (url: string = 'http://127.0.0.1:8000/api/member_portal') => {
+    try {
+      setLoading(true);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed Network response');
+
+      const data: PaginatedResponse<Member> = await response.json();
+      setMembers(data.results);
+      setNextPage(data.next);
+      setCurrentPage(data.current_page)
+      setTotalPages(data.total_page)
+      setPrevPage(data.previous);
+      setTotalMembers(data.count)
+      setCountExpired(data.count_expired)
+      setCountActive(data.count_active)
+      setLoading(false);
+    } catch (error) {
+      console.log('Error fetching members', error);
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMembers();
+  }, []);
+
+
 
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedMember, setSelectedMember] = useState<(typeof members)[0] | null>(null)
@@ -110,10 +58,10 @@ export default function MemberPortalPage() {
 
   const filteredMembers = members.filter(
     (member) =>
-      member.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      member.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      member.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      member.id.toLowerCase().includes(searchTerm.toLowerCase()),
+      member.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      member.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      member.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      member.id.toString().includes(searchTerm.toLowerCase()),
   )
 
   const handleView = (member: (typeof members)[0]) => {
@@ -137,9 +85,9 @@ export default function MemberPortalPage() {
   const getSmsMessage = () => {
     if (!selectedMember) return ""
     const messages = {
-      renewal: `Hi ${selectedMember.firstName}, your GymMaster membership expires on ${selectedMember.expiryDate}. Renew now to continue enjoying unlimited access! 💪`,
-      urgent: `${selectedMember.firstName}! Your membership expires soon (${selectedMember.expiryDate}). Renew today and get 20% OFF this month only! Don't miss out! 🏋️`,
-      expired: `Hi ${selectedMember.firstName}, your GymMaster membership has expired. Re-activate now and get back to your fitness goals! Come visit us! 🔥`,
+      renewal: `Hi ${selectedMember.first_name}, your GymMaster membership expires on ${selectedMember.expiry_date}. Renew now to continue enjoying unlimited access! 💪`,
+      urgent: `${selectedMember.first_name}! Your membership expires soon (${selectedMember.expiry_date}). Renew today and get 20% OFF this month only! Don't miss out! 🏋️`,
+      expired: `Hi ${selectedMember.first_name}, your GymMaster membership has expired. Re-activate now and get back to your fitness goals! Come visit us! 🔥`,
     }
     return messages[selectedSmsOption]
   }
@@ -153,23 +101,23 @@ export default function MemberPortalPage() {
     const updatedMembers = members.map((m) =>
       m.id === selectedMember.id
         ? {
-            ...m,
-            expiryDate: newExpiryDate.toISOString().split("T")[0],
-            status: "active",
-            paid: true,
-          }
+          ...m,
+          expiryDate: newExpiryDate.toISOString().split("T")[0],
+          status: "active",
+          paid: true,
+        }
         : m,
     )
     setMembers(updatedMembers)
     alert(
-      `✓ Subscription updated for ${selectedMember.firstName}! New expiry: ${newExpiryDate.toISOString().split("T")[0]}`,
+      `✓ Subscription updated for ${selectedMember.first_name}! New expiry: ${newExpiryDate.toISOString().split("T")[0]}`,
     )
     setShowModal(false)
   }
 
   const activeMemberCount = members.filter((m) => m.status === "active").length
   const expiredMemberCount = members.filter((m) => m.status === "expired").length
-  const totalRevenue = members.filter((m) => m.paid).reduce((sum, m) => sum + m.monthlyFee, 0)
+  const totalRevenue = members.filter((m) => m.paid).reduce((sum, m) => sum + m.monthly_fee, 0)
 
   return (
     <div className="flex h-screen bg-background">
@@ -182,15 +130,15 @@ export default function MemberPortalPage() {
             <div className="grid grid-cols-4 gap-4 mb-6">
               <Card className="p-4 bg-card border-card-border">
                 <p className="text-sm text-muted-foreground">Total Members</p>
-                <p className="text-2xl font-bold text-foreground">{members.length}</p>
+                <p className="text-2xl font-bold text-foreground">{totalMember}</p>
               </Card>
               <Card className="p-4 bg-card border-card-border">
                 <p className="text-sm text-muted-foreground">Active</p>
-                <p className="text-2xl font-bold text-green-500">{activeMemberCount}</p>
+                <p className="text-2xl font-bold text-green-500">{countActive}</p>
               </Card>
               <Card className="p-4 bg-card border-card-border">
                 <p className="text-sm text-muted-foreground">Expired</p>
-                <p className="text-2xl font-bold text-red-500">{expiredMemberCount}</p>
+                <p className="text-2xl font-bold text-red-500">{countExpired}</p>
               </Card>
               <Card className="p-4 bg-card border-card-border">
                 <p className="text-sm text-muted-foreground">Monthly Revenue</p>
@@ -213,6 +161,33 @@ export default function MemberPortalPage() {
               </div>
             </div>
 
+            <div className="flex items-center justify-between p-4 border-b border-card-border bg-background/50">
+
+              {/* Pagination Controls */}
+              <div className="flex items-center justify-end space-x-2 mt-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => prevPage && fetchMembers(prevPage)}
+                  disabled={!prevPage || loading}
+                >
+                  Previous
+                </Button>
+
+                <p className="text-sm text-muted-foreground">Page {currentPage} of {totalPages}</p>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => nextPage && fetchMembers(nextPage)}
+                  disabled={!nextPage || loading}
+                >
+                  Next
+                </Button>
+              </div>
+
+            </div>
+
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -230,17 +205,16 @@ export default function MemberPortalPage() {
                     <tr key={member.id} className="border-b border-card-border hover:bg-background/50">
                       <td className="px-6 py-4 text-sm text-foreground font-medium">{member.id}</td>
                       <td className="px-6 py-4 text-sm text-foreground">
-                        {member.firstName} {member.lastName}
+                        {member.first_name} {member.last_name}
                       </td>
                       <td className="px-6 py-4 text-sm text-muted-foreground">{member.membership}</td>
-                      <td className="px-6 py-4 text-sm text-muted-foreground">{member.expiryDate}</td>
+                      <td className="px-6 py-4 text-sm text-muted-foreground">{member.expiry_date}</td>
                       <td className="px-6 py-4 text-sm">
                         <span
-                          className={`px-2 py-1 rounded text-xs font-semibold ${
-                            member.status === "active" ? "bg-green-500/20 text-green-500" : "bg-red-500/20 text-red-500"
-                          }`}
+                          className={`px-2 py-1 rounded text-xs font-semibold ${member.status === "Active" ? "bg-green-500/20 text-green-500" : "bg-red-500/20 text-red-500"
+                            }`}
                         >
-                          {member.status === "active" ? "Active" : "Expired"}
+                          {member.status === "Active" ? "Active" : "Expired"}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm">
@@ -289,7 +263,7 @@ export default function MemberPortalPage() {
                         <div className="w-32 h-32 rounded-lg overflow-hidden bg-input border border-input-border flex-shrink-0">
                           <img
                             src={selectedMember.image || "/placeholder.svg"}
-                            alt={selectedMember.firstName}
+                            alt={selectedMember.first_name}
                             className="w-full h-full object-cover"
                           />
                         </div>
@@ -301,11 +275,11 @@ export default function MemberPortalPage() {
                           <div className="grid grid-cols-2 gap-4">
                             <div>
                               <p className="text-xs text-muted-foreground uppercase">First Name</p>
-                              <p className="text-foreground">{selectedMember.firstName}</p>
+                              <p className="text-foreground">{selectedMember.first_name}</p>
                             </div>
                             <div>
                               <p className="text-xs text-muted-foreground uppercase">Last Name</p>
-                              <p className="text-foreground">{selectedMember.lastName}</p>
+                              <p className="text-foreground">{selectedMember.last_name}</p>
                             </div>
                           </div>
                         </div>
@@ -326,7 +300,7 @@ export default function MemberPortalPage() {
                         </div>
                         <div>
                           <p className="text-xs text-muted-foreground uppercase">Phone</p>
-                          <p className="text-foreground">{selectedMember.phone}</p>
+                          <p className="text-foreground">{selectedMember.phone_number}</p>
                         </div>
                         <div>
                           <p className="text-xs text-muted-foreground uppercase">Email</p>
@@ -342,16 +316,15 @@ export default function MemberPortalPage() {
                         </div>
                         <div>
                           <p className="text-xs text-muted-foreground uppercase">Join Date</p>
-                          <p className="text-foreground">{selectedMember.joinDate}</p>
+                          <p className="text-foreground">{selectedMember.join_date}</p>
                         </div>
                         <div className="col-span-2">
                           <p className="text-xs text-muted-foreground uppercase">Expiration Date</p>
                           <p
-                            className={`text-lg font-bold ${
-                              selectedMember.status === "active" ? "text-green-500" : "text-red-500"
-                            }`}
+                            className={`text-lg font-bold ${selectedMember.status === "active" ? "text-green-500" : "text-red-500"
+                              }`}
                           >
-                            {selectedMember.expiryDate}
+                            {selectedMember.expiry_date}
                           </p>
                         </div>
                       </div>
@@ -364,12 +337,12 @@ export default function MemberPortalPage() {
                         <p className="text-sm text-muted-foreground mb-2">
                           Renewing subscription for:{" "}
                           <span className="text-foreground font-semibold">
-                            {selectedMember.firstName} {selectedMember.lastName}
+                            {selectedMember.first_name} {selectedMember.last_name}
                           </span>
                         </p>
                         <p className="text-sm text-muted-foreground">
                           Current Expiry:{" "}
-                          <span className="text-foreground font-semibold">{selectedMember.expiryDate}</span>
+                          <span className="text-foreground font-semibold">{selectedMember.expiry_date}</span>
                         </p>
                       </div>
 
@@ -413,7 +386,7 @@ export default function MemberPortalPage() {
                   {modalType === "sms" && (
                     <div className="space-y-4">
                       <p className="text-sm text-muted-foreground">
-                        Sending to: <span className="text-foreground font-semibold">{selectedMember.phone}</span>
+                        Sending to: <span className="text-foreground font-semibold">{selectedMember.phone_number}</span>
                       </p>
 
                       <div className="space-y-3">
@@ -462,7 +435,7 @@ export default function MemberPortalPage() {
 
                       <Button
                         onClick={() => {
-                          alert(`✓ SMS sent to ${selectedMember.phone}!`)
+                          alert(`✓ SMS sent to ${selectedMember.phone_number}!`)
                           setShowModal(false)
                         }}
                         className="w-full bg-blue-500 hover:bg-blue-600 text-white mt-6"

@@ -40,9 +40,14 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
 
     "member_portal",
+    "pos",
+
+    "corsheaders",
 ]
 
 MIDDLEWARE = [
+    # CORS Middleware must be placed before CommonMiddleware to properly handle CORS headers
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -53,6 +58,18 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = "gym_backend.urls"
+
+
+# CORS Configuration
+# Renamed from CORS_ALLOWED_ORIGIN (singular) to CORS_ALLOWED_ORIGINS (plural)
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://192.168.56.1:3001"
+]
+
+# Allow all origins for development purposes
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ORIGIN_ALLOW_ALL = True # For older versions of django-cors-headers
 
 TEMPLATES = [
     {

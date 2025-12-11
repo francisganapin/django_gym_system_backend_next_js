@@ -25,17 +25,36 @@ type Transaction = {
   change?: number
 }
 
-export default function PointOfSalePage() {
-  const products = [
-    { id: 1, name: "Protein Powder", price: 1500, image: "/protein-powder.png" },
-    { id: 2, name: "Water Bottle", price: 800, image: "/sports-water-bottle.png" },
-    { id: 3, name: "Towel", price: 500, image: "/gym-towel.jpg" },
-    { id: 4, name: "Gloves", price: 1200, image: "/weight-lifting-gloves.jpg" },
-    { id: 5, name: "Pre-Workout", price: 1800, image: "/pre-workout-supplement.png" },
-    { id: 6, name: "Shaker", price: 600, image: "/protein-shaker-bottle.jpg" },
-  ]
+type Product = {
+  id: number
+  name: string
+  price: number
+  image: string
+}
 
+export default function PointOfSalePage() {
+
+
+
+  const fetchProducts = async (url: string = 'http://127.0.0.1:8000/api/Product') => {
+    try {
+      setLoading(true);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed Network Response');
+
+      const data: Product[] = await response.json();
+      return data;
+    } catch (error) {
+      console.log(error);
+    }
+
+  }
+
+
+
+  const [products, setProducts] = useState<Product[]>([])
   const [cart, setCart] = useState<CartItem[]>([])
+  const [loading, setLoading] = useState<boolean>(false);
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showQRModal, setShowQRModal] = useState(false)
@@ -58,6 +77,14 @@ export default function PointOfSalePage() {
         console.error("Failed to load payment templates")
       }
     }
+
+    const loadProducts = async () => {
+      const data = await fetchProducts();
+      if (data) {
+        setProducts(data);
+      }
+    };
+    loadProducts();
   }, [])
 
   const total = cart.reduce((sum, item) => sum + item.price * item.qty, 0)
@@ -253,7 +280,7 @@ export default function PointOfSalePage() {
                       <div
                         key={product.id}
                         className="p-4 bg-input border border-input-border rounded-lg hover:border-primary cursor-pointer transition-all"
-                        onClick={() => addToCart(product)}
+                        onClick={() => addToCart({ ...product, qty: 1 })}
                       >
                         <div className="w-full h-24 rounded bg-background mb-3 overflow-hidden">
                           <img
