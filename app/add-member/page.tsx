@@ -10,6 +10,19 @@ import Header from "@/components/header"
 import Sidebar from "@/components/sidebar"
 import { Upload, X } from "lucide-react"
 
+
+type MemberFormData = {
+  firstName: string
+  lastName: string
+  email:string
+  phone:string
+  dateofBirth:string
+  membershipType:string
+  joinDate:string
+  image:string | null
+}
+
+
 export default function AddMemberPage() {
   const [formData, setFormData] = useState({
     firstName: "",
@@ -42,21 +55,38 @@ export default function AddMemberPage() {
     setFormData((prev) => ({ ...prev, image: null }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    console.log("Member added:", formData)
-    alert("Member added successfully!")
-    setFormData({
-      firstName: "",
-      lastName: "",
-      email: "",
-      phone: "",
-      dateOfBirth: "",
-      membershipType: "standard",
-      joinDate: new Date().toISOString().split("T")[0],
-      image: null,
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault()
+
+  try {
+    const response = await fetch("http://127.0.0.1:8000/api/member_portal/", {
+      method: "POST",
+      body: JSON.stringify({
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        email: formData.email,
+        phone: formData.phone,
+        date_of_birth: formData.dateOfBirth,
+        membership_type: formData.membershipType,
+        join_date: formData.joinDate,
+        image: formData.image, // base64
+      }),
     })
+
+    if (!response.ok){
+      const errorText = await response.text()
+      console.error("Backend error:", errorText)
+      throw new Error(errorText)
+    }
+
+    const data = await response.json()
+    console.log(data)
+    alert("Member added successfully!")
+  } catch (err) {
+    console.error(err)
   }
+}
+
 
   return (
     <div className="flex h-screen bg-background">
