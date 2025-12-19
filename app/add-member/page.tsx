@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
@@ -24,6 +24,7 @@ type MemberFormData = {
 
 
 export default function AddMemberPage() {
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -46,6 +47,7 @@ export default function AddMemberPage() {
       const reader = new FileReader()
       reader.onloadend = () => {
         setFormData((prev) => ({ ...prev, image: reader.result as string }))
+        setImageError(false);
       }
       reader.readAsDataURL(file)
     }
@@ -53,24 +55,46 @@ export default function AddMemberPage() {
 
   const removeImage = () => {
     setFormData((prev) => ({ ...prev, image: null }))
+    // Also clear the hidden file input so HTML5 `required` validation works
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
+    }
   }
+
+
+
+const [ImageError, setImageError] = useState(false);
 
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault()
 
+  if (!formData.image) {
+        setImageError(true);
+      return;
+    }
+  setImageError(false);
+
   try {
+    // Enforce image required on submit (hidden input may skip native validation)
+    
+    // DRF expects application/json or multipart. We're sending JSON here.
+    const payload = {
+      first_name: formData.firstName,
+      last_name: formData.lastName,
+      email: formData.email,
+      // Backend model uses `phone_number` and `membership`
+      phone_number: formData.phone,
+      membership: formData.membershipType,
+      // Omit unknown fields for this endpoint (date_of_birth, join_date, image)
+    }
+
     const response = await fetch("http://127.0.0.1:8000/api/member_portal/", {
       method: "POST",
-      body: JSON.stringify({
-        first_name: formData.firstName,
-        last_name: formData.lastName,
-        email: formData.email,
-        phone: formData.phone,
-        date_of_birth: formData.dateOfBirth,
-        membership_type: formData.membershipType,
-        join_date: formData.joinDate,
-        image: formData.image, // base64
-      }),
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(payload),
     })
 
     if (!response.ok){
@@ -99,15 +123,28 @@ const handleSubmit = async (e: React.FormEvent) => {
             <Card className="p-6 bg-card border-card-border">
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Member Photo</label>
+                  {/* CHANGE 1: Removed error message from inside the label */}
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Member Photo
+                  </label>
+                  
+                  {/* CHANGE 2: Added error message here as a separate element for better visibility */}
+                  {ImageError && (
+                    <p className="text-red-500 text-sm mb-2 font-medium">
+                      ⚠ Photo is required. Please upload an image.
+                    </p>
+                  )}
+
                   <div className="flex items-center gap-4">
                     {formData.image ? (
                       <div className="relative w-24 h-24">
+
                         <img
                           src={formData.image || "/placeholder.svg"}
                           alt="Member preview"
                           className="w-full h-full object-cover rounded-lg border border-input-border"
                         />
+                        
                         <button
                           type="button"
                           onClick={removeImage}
@@ -117,7 +154,10 @@ const handleSubmit = async (e: React.FormEvent) => {
                         </button>
                       </div>
                     ) : (
-                      <div className="w-24 h-24 border-2 border-dashed border-input-border rounded-lg flex items-center justify-center bg-input/50">
+                      // CHANGE 3: Added red border to upload area when there's an error
+                      <div className={`w-24 h-24 border-2 border-dashed rounded-lg flex items-center justify-center bg-input/50 ${
+                        ImageError ? 'border-red-500' : 'border-input-border'
+                      }`}>
                         <Upload className="w-6 h-6 text-foreground/50" />
                       </div>
                     )}
@@ -125,7 +165,16 @@ const handleSubmit = async (e: React.FormEvent) => {
                       <label className="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg cursor-pointer transition-colors">
                         <Upload className="w-4 h-4" />
                         Upload Photo
-                        <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                        {/* CHANGE 4: Removed 'required' attribute because hidden inputs can't be focused by browser validation */}
+                        {/* We're handling validation manually in handleSubmit with ImageError state instead */}
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          name="image"
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          className="hidden"
+                        />
                       </label>
                       <p className="text-xs text-foreground/60 mt-2">JPG, PNG, or GIF</p>
                     </div>
