@@ -1,16 +1,60 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Header from "@/components/header"
 import Sidebar from "@/components/sidebar"
 import MemberStats from "@/components/member-stats"
 import MemberChart from "@/components/member-chart"
 import MemberGraph from "@/components/member-graph"
-import VisitHistory from "@/components/visit-history"
-import MemberPanel from "@/components/member-panel"
-
+import { Member, PaginatedResponse } from "./member-portal/types"
 export default function Home() {
-  const [selectedMember, setSelectedMember] = useState(true)
+
+
+
+
+  const [members, setMembers] = useState<Member[]>([]);
+  const [nextPage, setNextPage] = useState<string | null>(null);
+  const [prevPage, setPrevPage] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState<number>(0)
+  const [totalPages, setTotalPages] = useState<number>(0)
+  const [loading, setLoading] = useState<boolean>(false);
+  const [totalMember, setTotalMembers] = useState<number>(0)
+  const [countExpired, setCountExpired] = useState<number>(0)
+  const [countActive, setCountActive] = useState<number>(0)
+
+
+
+
+
+
+  const fetchMembers = async (url: string = 'http://127.0.0.1:8000/api/member_portal') => {
+    try {
+      setLoading(true);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed Network response');
+
+      const data: PaginatedResponse<Member> = await response.json();
+      setMembers(data.results);
+      setNextPage(data.next);
+      setCurrentPage(data.current_page)
+      setTotalPages(data.total_page)
+      setPrevPage(data.previous);
+      setTotalMembers(data.count)
+      setCountExpired(data.count_expired)
+      setCountActive(data.count_active)
+      setLoading(false);
+    } catch (error) {
+      console.log('Error fetching members', error);
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMembers();
+  }, []);
+
+
+
 
   return (
     <div className="flex h-screen bg-background">
@@ -28,7 +72,12 @@ export default function Home() {
           <div className="flex-1 p-6 space-y-6 overflow-auto">
             {/* Stats Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <MemberStats title="Current Members" value="430" subtitle="390 Active Members" color="neutral" />
+              <MemberStats
+                title="Total Members"
+                value={totalMember.toString()}
+                subtitle={`${countActive} Active Members`}
+                color="neutral"
+              />
               <MemberStats
                 title="Cancellations"
                 value="2"
@@ -70,12 +119,8 @@ export default function Home() {
               <MemberGraph />
             </div>
 
-            {/* Visit History */}
-            <VisitHistory />
           </div>
 
-          {/* Right Panel - Member Details */}
-          {selectedMember && <MemberPanel onClose={() => setSelectedMember(false)} />}
         </div>
       </div>
     </div>

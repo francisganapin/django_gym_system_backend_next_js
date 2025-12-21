@@ -11,45 +11,14 @@ import { CheckCircle, XCircle } from "lucide-react"
 interface CheckInMember {
   id: string
   name: string
+  first_name: string
+  last_name: string
   email: string
+  member_id: string
   membershipType: string
-  expirationDate: string
+  expiry_date: string
+  image: string
   status: "active" | "expired"
-}
-
-const mockMembers: Record<string, CheckInMember> = {
-  ID001: {
-    id: "ID001",
-    name: "Veronica Mars",
-    email: "veronica@example.com",
-    membershipType: "Premium Monthly",
-    expirationDate: "2025-03-15",
-    status: "active",
-  },
-  ID002: {
-    id: "ID002",
-    name: "John Doe",
-    email: "john@example.com",
-    membershipType: "Standard Monthly",
-    expirationDate: "2024-12-01",
-    status: "expired",
-  },
-  ID003: {
-    id: "ID003",
-    name: "Sarah Johnson",
-    email: "sarah@example.com",
-    membershipType: "Premium Monthly",
-    expirationDate: "2025-05-20",
-    status: "active",
-  },
-  ID004: {
-    id: "ID004",
-    name: "Mike Wilson",
-    email: "mike@example.com",
-    membershipType: "Standard Monthly",
-    expirationDate: "2025-01-30",
-    status: "active",
-  },
 }
 
 export default function LoginPortalPage() {
@@ -58,39 +27,44 @@ export default function LoginPortalPage() {
   const [error, setError] = useState("")
   const [checkInHistory, setCheckInHistory] = useState<Array<{ name: string; time: string; status: string }>>([])
 
-  const handleCheckIn = (e: React.FormEvent) => {
+  const handleCheckIn = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
     setCheckedInMember(null)
 
-    const member = mockMembers[memberId.toUpperCase()]
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/api/member_portal?member_id=${memberId.toUpperCase()}`, {
+        method: 'GET',
+      });
 
-    if (!member) {
-      setError("Member ID not found. Please check and try again.")
-      return
+      if (!response.ok) {
+        throw new Error('Member ID not Found. Please check')
+      }
+
+      const member = await response.json();
+
+      const expiryDate = new Date(member.expiry_date);
+      const today = new Date();
+      const isExpired = expiryDate < today;
+
+      const memberData: CheckInMember = {
+        ...member,
+        status: isExpired ? 'expired' : "active",
+      };
+      setCheckedInMember(memberData);
+
+      const currentTime = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+
+      setCheckInHistory((prev) => [
+        { name: member.name, time: currentTime, status: isExpired ? "Expired" : "Active" },
+        ...prev.slice(0, 9),
+      ]);
+
+      setMemberId('');
+    } catch (err: any) {
+      setError(err.message || "An error")
     }
-
-    const expiryDate = new Date(member.expirationDate)
-    const today = new Date()
-    const isExpired = expiryDate < today
-    const daysLeft = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-
-    const memberData: CheckInMember = {
-      ...member,
-      status: isExpired ? "expired" : "active",
-    }
-
-    setCheckedInMember(memberData)
-
-    const currentTime = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
-    setCheckInHistory((prev) => [
-      { name: member.name, time: currentTime, status: isExpired ? "Expired" : "Active" },
-      ...prev.slice(0, 9),
-    ])
-
-    // Reset input
-    setMemberId("")
-  }
+  };
 
   return (
     <div className="flex h-screen bg-background">
@@ -139,97 +113,70 @@ export default function LoginPortalPage() {
               {/* Member Status Display */}
               {checkedInMember && (
                 <div
-                  className={`p-6 rounded-lg border-2 ${
-                    checkedInMember.status === "active"
-                      ? "bg-green-500/10 border-green-500/50"
-                      : "bg-red-500/10 border-red-500/50"
-                  }`}
+                  className={`p-6 rounded-lg border-2 ${checkedInMember.status === "active"
+                    ? "bg-green-500/10 border-green-500/50"
+                    : "bg-red-500/10 border-red-500/50"
+                    }`}
                 >
-                  <div className="flex items-start gap-4">
-                    <div>
+                  {/* Member Photo - Centered at Top */}
+                  <div className="flex flex-col items-center mb-6">
+                    <img
+                      src={checkedInMember.image}
+                      alt={`${checkedInMember.first_name} ${checkedInMember.last_name}`}
+                      className="w-24 h-24 rounded-full object-cover border-4 border-white/20 mb-3"
+                    />
+                    <div className="flex items-center gap-2">
                       {checkedInMember.status === "active" ? (
-                        <CheckCircle className="h-8 w-8 text-green-500" />
+                        <CheckCircle className="h-5 w-5 text-green-500" />
                       ) : (
-                        <XCircle className="h-8 w-8 text-red-500" />
+                        <XCircle className="h-5 w-5 text-red-500" />
                       )}
+                      <h3 className="text-lg font-bold text-foreground">
+                        {checkedInMember.first_name} {checkedInMember.last_name}
+                      </h3>
                     </div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-bold text-foreground">{checkedInMember.name}</h3>
-                      <p className="text-sm text-muted-foreground mb-4">{checkedInMember.membershipType}</p>
+                    <span className={`mt-2 px-3 py-1 rounded-full text-xs font-semibold uppercase ${checkedInMember.status === "active"
+                        ? "bg-green-500/20 text-green-400"
+                        : "bg-red-500/20 text-red-400"
+                      }`}>
+                      {checkedInMember.status === "active" ? "✓ Active" : "✗ Expired"}
+                    </span>
+                  </div>
 
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-xs text-muted-foreground">Email</p>
-                          <p className="text-sm font-medium text-foreground">{checkedInMember.email}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Member ID</p>
-                          <p className="text-sm font-medium text-foreground">{checkedInMember.id}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Expiration Date</p>
-                          <p
-                            className={`text-sm font-bold ${
-                              checkedInMember.status === "active" ? "text-green-400" : "text-red-400"
-                            }`}
-                          >
-                            {new Date(checkedInMember.expirationDate).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Status</p>
-                          <p
-                            className={`text-sm font-bold uppercase ${
-                              checkedInMember.status === "active" ? "text-green-400" : "text-red-400"
-                            }`}
-                          >
-                            {checkedInMember.status === "active" ? "✓ Active" : "✗ Expired"}
-                          </p>
-                        </div>
-                      </div>
-
-                      {checkedInMember.status === "active" && (
-                        <p className="text-xs text-green-400 mt-4">✓ Attendance marked. Welcome to the gym!</p>
-                      )}
-                      {checkedInMember.status === "expired" && (
-                        <p className="text-xs text-red-400 mt-4">✗ Membership expired. Please renew to continue.</p>
-                      )}
+                  {/* Member Details - Aligned Grid */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Member ID</p>
+                      <p className="text-sm font-medium text-foreground">{checkedInMember.member_id}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Email</p>
+                      <p className="text-sm font-medium text-foreground">{checkedInMember.email}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Expiration Date</p>
+                      <p className={`text-sm font-bold ${checkedInMember.status === "active" ? "text-green-400" : "text-red-400"
+                        }`}>
+                        {new Date(checkedInMember.expiry_date).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Membership Type</p>
+                      <p className="text-sm font-medium text-foreground">{checkedInMember.membershipType || "Standard"}</p>
                     </div>
                   </div>
+
+                  {/* Welcome Message */}
+                  {checkedInMember.status === "active" && (
+                    <p className="text-sm text-green-400 mt-4 text-center">✓ Attendance marked. Welcome to the gym!</p>
+                  )}
+                  {checkedInMember.status === "expired" && (
+                    <p className="text-sm text-red-400 mt-4 text-center">✗ Membership expired. Please renew to continue.</p>
+                  )}
                 </div>
               )}
             </Card>
 
-            {/* Check-In History */}
-            {checkInHistory.length > 0 && (
-              <Card className="p-6 bg-card border-card-border">
-                <h3 className="text-lg font-semibold text-foreground mb-4">Today's Check-Ins</h3>
-                <div className="space-y-2">
-                  {checkInHistory.map((record, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-3 bg-background/50 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`h-2 w-2 rounded-full ${
-                            record.status === "Active" ? "bg-green-500" : "bg-red-500"
-                          }`}
-                        />
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{record.name}</p>
-                          <p className="text-xs text-muted-foreground">{record.time}</p>
-                        </div>
-                      </div>
-                      <span
-                        className={`text-xs font-semibold px-2 py-1 rounded ${
-                          record.status === "Active" ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"
-                        }`}
-                      >
-                        {record.status}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            )}
           </div>
         </div>
       </div>

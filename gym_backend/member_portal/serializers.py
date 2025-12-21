@@ -13,6 +13,7 @@ class MemberPortalSerializer(serializers.ModelSerializer):
             "expiry_date": {"required": False},
             "status": {"required": False},
             "location": {"required": False},
+            'email':{'required':False},
             "membership": {"required": False},
             "monthly_fee": {"required": False},
             "age": {"required": False},

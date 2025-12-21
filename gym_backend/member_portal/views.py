@@ -35,3 +35,31 @@ class MemberPortalViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.AllowAny]
     authentication_classes = []  
     pagination_class =SevenPerPagePagination
+
+
+
+    def get_queryset(self):
+        queryset = Member_Portal.objects.all()
+        member_id = self.request.query_params.get('member_id',None)
+        if member_id is not None:
+            queryset = queryset.filter(member_id=member_id)
+        
+        return queryset
+
+    def list(self,request,*args,**kwargs):
+
+        member_id = request.query_params.get('member_id',None)
+
+        if member_id:
+            try:
+                member = Member_Portal.objects.get(member_id=member_id)
+                serializer = self.get_serializer(member)
+                return Response(serializer.data)
+            except Member_Portal.DoesNotExist:
+                 return Response(
+                    {'error': f'Member with ID {member_id} not found'},
+                    status=404
+                )
+        
+
+        return super().list(request,*args,**kwargs)

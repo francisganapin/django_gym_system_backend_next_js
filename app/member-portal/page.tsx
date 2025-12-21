@@ -21,6 +21,9 @@ export default function MemberPortalPage() {
   const [countExpired, setCountExpired] = useState<number>(0)
   const [countActive, setCountActive] = useState<number>(0)
 
+
+  const today = new Date();
+
   const fetchMembers = async (url: string = 'http://127.0.0.1:8000/api/member_portal') => {
     try {
       setLoading(true);
@@ -53,7 +56,7 @@ export default function MemberPortalPage() {
   const [selectedMember, setSelectedMember] = useState<(typeof members)[0] | null>(null)
   const [showModal, setShowModal] = useState(false)
   const [modalType, setModalType] = useState<"view" | "update" | "sms">("view")
-  const [selectedDuration, setSelectedDuration] = useState<"1" | "3" | "6" | "12">("1")
+  const [newExpiryDate, setNewExpiryDate] = useState<string>("")
   const [selectedSmsOption, setSelectedSmsOption] = useState<"renewal" | "urgent" | "expired">("renewal")
 
   const filteredMembers = members.filter(
@@ -92,32 +95,43 @@ export default function MemberPortalPage() {
     return messages[selectedSmsOption]
   }
 
-  const handleUpdateSubscription = () => {
+  const handleUpdateSubscription = async () => {
     if (!selectedMember) return
-    const durationMonths = Number.parseInt(selectedDuration)
-    const newExpiryDate = new Date()
-    newExpiryDate.setMonth(newExpiryDate.getMonth() + durationMonths)
 
-    const updatedMembers = members.map((m) =>
-      m.id === selectedMember.id
-        ? {
-          ...m,
-          expiryDate: newExpiryDate.toISOString().split("T")[0],
-          status: "active",
+    if (!newExpiryDate) {
+      alert('Please select a new expiry date');
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/api/member_portal/${selectedMember.id}/`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          expiry_date: newExpiryDate,
+          status: 'Active',
           paid: true,
-        }
-        : m,
-    )
-    setMembers(updatedMembers)
-    alert(
-      `✓ Subscription updated for ${selectedMember.first_name}! New expiry: ${newExpiryDate.toISOString().split("T")[0]}`,
-    )
-    setShowModal(false)
-  }
+        }),
+      });
 
-  const activeMemberCount = members.filter((m) => m.status === "active").length
-  const expiredMemberCount = members.filter((m) => m.status === "expired").length
-  const totalRevenue = members.filter((m) => m.paid).reduce((sum, m) => sum + m.monthly_fee, 0)
+      if (!response.ok) {
+        throw new Error('Failed to update member');
+      }
+
+      await fetchMembers();
+      alert(`Subscription updated for ${selectedMember.first_name}! New expiry: ${newExpiryDate}`);
+      setShowModal(false);
+      setNewExpiryDate('');
+    } catch (error) {
+      console.error('Error updating', error);
+      alert('Failed to update subcription.Please try again');
+    }
+  };
+
+
+  const totalRevenue = members.filter((m) => m.paid).reduce((sum, m) => sum + (m.monthly_fee || 0), 0)
 
   return (
     <div className="flex h-screen bg-background">
@@ -193,6 +207,7 @@ export default function MemberPortalPage() {
                 <thead>
                   <tr className="border-b border-card-border bg-background/50">
                     <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">ID</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Member ID</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Name</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Membership</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Expiry Date</th>
@@ -204,6 +219,7 @@ export default function MemberPortalPage() {
                   {filteredMembers.map((member) => (
                     <tr key={member.id} className="border-b border-card-border hover:bg-background/50">
                       <td className="px-6 py-4 text-sm text-foreground font-medium">{member.id}</td>
+                      <td className="px-6 py-4 text-sm text-foreground font-medium">{member.member_id}</td>
                       <td className="px-6 py-4 text-sm text-foreground">
                         {member.first_name} {member.last_name}
                       </td>
@@ -271,6 +287,10 @@ export default function MemberPortalPage() {
                           <div>
                             <p className="text-xs text-muted-foreground uppercase">ID</p>
                             <p className="text-foreground font-semibold">{selectedMember.id}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground uppercase">Member ID</p>
+                            <p className="text-foreground font-semibold">{selectedMember.member_id}</p>
                           </div>
                           <div className="grid grid-cols-2 gap-4">
                             <div>
@@ -347,31 +367,16 @@ export default function MemberPortalPage() {
                       </div>
 
                       <div className="space-y-3">
-                        <p className="text-sm font-semibold text-foreground">Select Duration:</p>
-                        {[
-                          { value: "1", label: "1 Month", price: 2500 },
-                          { value: "3", label: "3 Months", price: 7200 },
-                          { value: "6", label: "6 Months", price: 13500 },
-                          { value: "12", label: "1 Year", price: 25000 },
-                        ].map((option) => (
-                          <label
-                            key={option.value}
-                            className="flex items-center gap-3 p-3 rounded border border-input-border cursor-pointer hover:bg-input"
-                          >
-                            <input
-                              type="radio"
-                              name="duration"
-                              value={option.value}
-                              checked={selectedDuration === option.value}
-                              onChange={(e) => setSelectedDuration(e.target.value as "1" | "3" | "6" | "12")}
-                              className="w-4 h-4"
-                            />
-                            <div className="flex-1">
-                              <p className="text-sm font-medium text-foreground">{option.label}</p>
-                              <p className="text-xs text-muted-foreground">₱{option.price.toLocaleString()}</p>
-                            </div>
-                          </label>
-                        ))}
+                        <label className="block">
+                          <p className="text-sm font-semibold text-foreground mb-2">Select New Expiry Date:</p>
+                          <input
+                            type="date"
+                            value={newExpiryDate}
+                            onChange={(e) => setNewExpiryDate(e.target.value)}
+                            min={new Date().toISOString().split('T')[0]}
+                            className="w-full bg-input border border-input-border text-foreground p-3 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                          />
+                        </label>
                       </div>
 
                       <Button
