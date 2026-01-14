@@ -1,0 +1,227 @@
+You're getting the error because your **Index.fields must be strings**, NOT expressions.
+
+❌ This is **invalid**:
+
+```python
+Index(fields=[Lower('first_name')]),
+```
+
+**`Lower()` is an expression**, not a field name string.
+Django does NOT allow expressions inside `Index(fields=...)`.
+
+---
+
+# ✅ **Correct Usage of Index with Expressions**
+
+Django allows expressions **ONLY using `Index` with `expressions=`**, not `fields=`.
+
+### ✔ Correct version:
+
+```python
+Index(Lower('first_name').desc()),
+```
+
+Or:
+
+```python
+Index(name='idx_first_name_lower', expressions=[Lower('first_name')]),
+```
+
+---
+
+# ✅ **Fix Your Whole Meta.indexes Section**
+
+Here is the corrected version:
+
+```python
+class Meta:
+    indexes = [
+        Index(name='idx_first_name_lower', expressions=[Lower('first_name')]),
+        Index(name='idx_last_name_lower', expressions=[Lower('last_name')]),
+        Index(name='idx_member_id_lower', expressions=[Lower('member_id')]),
+        Index(name='idx_expiry_date_lower', expressions=[Lower('expiry_date')]),
+        Index(name='idx_status_lower', expressions=[Lower('status')]),
+        Index(name='idx_location_lower', expressions=[Lower('location')]),
+        Index(name='idx_membership_lower', expressions=[Lower('membership')]),
+        # age is an IntegerField; Lower() does NOT apply
+        Index(fields=['age']),
+        Index(name='idx_service_lower', expressions=[Lower('service')]),
+        Index(name='idx_gender_lower', expressions=[Lower('gender')]),
+        Index(fields=['join_date']),
+    ]
+
+    db_table = 'member_portal_tb'
+```
+
+---
+
+# ❌ **Why Lower() on IntegerField Fails**
+
+You wrote:
+
+```python
+Index(fields=[Lower('age')]),
+```
+
+But:
+
+* `age` is an `IntegerField`
+* `Lower()` ONLY works on **text fields**
+
+So remove Lower() for age.
+
+---
+
+# 📘 Django Documentation (Official)
+
+### 🔹 Index with expressions
+
+[https://docs.djangoproject.com/en/5.0/ref/models/indexes/#expressions](https://docs.djangoproject.com/en/5.0/ref/models/indexes/#expressions)
+
+### Example from docs:
+
+```python
+Index(name='lower_first_name_idx', expressions=[Lower('first_name')]),
+```
+
+---
+
+# ⭐ Extra Tips
+
+### If your intention is **case-insensitive search**, it's better to add:
+
+```python
+class Meta:
+    indexes = [
+        Index(Lower("first_name"), name="first_name_ci"),
+    ]
+```
+
+But still use:
+
+```python
+expressions=[Lower('first_name')]
+```
+
+---
+
+If you want, I can fix **your entire model** and generate **migrations** plus **search queries** using these indexes.
+
+
+
+You are getting:
+
+```
+TypeError: Index.__init__() got an unexpected keyword argument 'expressions'
+```
+
+✔ This means **your Django version is OLD** and does **NOT support expression indexes**.
+
+### 🔥 Expression indexes (using `expressions=[...]`) were added in:
+
+**Django 3.2+**
+
+If your Django is **2.x or early 3.0**, `Index(expressions=...)` will FAIL.
+
+---
+
+# ✅ **Check your Django version**
+
+Run:
+
+```
+python -m django --version
+```
+
+Tell me the output.
+
+---
+
+# ✅ **Why It Fails**
+
+Your Django version only supports:
+
+```
+Index(fields=['fieldname'])
+```
+
+It does NOT support:
+
+```
+Index(expressions=[Lower('first_name')])
+```
+
+---
+
+# ⭐ **Solution Options**
+
+---
+
+# **OPTION 1 — Upgrade Django (Recommended)**
+
+This will allow expression indexes:
+
+```
+pip install --upgrade django
+```
+
+Then your code will work:
+
+```python
+Index(name='idx_first_name_lower', expressions=[Lower('first_name')]),
+```
+
+---
+
+# **OPTION 2 — If you CANNOT upgrade Django**
+
+You must remove all `Lower()` expressions.
+
+Use normal field indexes only:
+
+```python
+class Meta:
+    indexes = [
+        Index(fields=['first_name']),
+        Index(fields=['last_name']),
+        Index(fields=['member_id']),
+        Index(fields=['expiry_date']),
+        Index(fields=['status']),
+        Index(fields=['location']),
+        Index(fields=['membership']),
+        Index(fields=['age']),
+        Index(fields=['service']),
+        Index(fields=['gender']),
+        Index(fields=['join_date']),
+    ]
+
+    db_table = 'member_portal_tb'
+```
+
+---
+
+# ⭐ **OPTION 3 — Case-insensitive indexing workaround (without expressions)**
+
+If you want **case-insensitive search** *but cannot upgrade Django*, add a **new lowercase field**:
+
+```python
+first_name_lower = models.CharField(max_length=50, editable=False)
+```
+
+Then override `save()`:
+
+```python
+def save(self, *args, **kwargs):
+    self.first_name_lower = self.first_name.lower()
+    super().save(*args, **kwargs)
+```
+
+Then index that field:
+
+```python
+Index(fields=['first_name_lower'])
+```
+
+---
+
+# 📌 **Tell me your Django version so I can give the exact final working code.**
