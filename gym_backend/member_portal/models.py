@@ -64,3 +64,5 @@ class MemberLoginRecord(models.Model):
     @property
     def login_time_only(self):
         return self.login_time.time().strftime("%H:%M:%S")
+
+

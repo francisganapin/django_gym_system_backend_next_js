@@ -14,10 +14,21 @@ type CartItem = {
   image: string
   qty: number
 }
+// For sending to Django API
+type ApiTransaction = {
+  transaction_id: number
+  items: number  // Django ForeignKey expects product ID
+  total: number
+  price: number
+  paymentMethod: string
+  cashAmount?: number
+  changes?: number
+}
 
-type Transaction = {
-  id: number
-  date: string
+// For local UI display (transaction history)
+type LocalTransaction = {
+  transaction_id: number
+  date?: string
   items: CartItem[]
   total: number
   paymentMethod: string
@@ -30,20 +41,39 @@ type Product = {
   name: string
   price: number
   image: string
+  stock: number
+}
+
+interface PaginatedResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  current_page: number;
+  total_page: number;
+  results: T[];
 }
 
 export default function PointOfSalePage() {
 
 
 
-  const fetchProducts = async (url: string = 'http://127.0.0.1:8000/api/Product') => {
+
+  const fetchProducts = async (url: string = 'http://127.0.0.1:8000/api/product/') => {
     try {
       setLoading(true);
       const response = await fetch(url);
       if (!response.ok) throw new Error('Failed Network Response');
 
-      const data: Product[] = await response.json();
-      return data;
+      const data: PaginatedResponse<Product> = await response.json();
+      setProducts(data.results);
+      setNextPage(data.next);
+      setPrevPage(data.previous);
+      setTotalPage(data.total_page);
+      setCurrentPage(data.current_page);
+
+
+      // Django REST Framework returns paginated response with 'results' array
+      return data.results as Product[];
     } catch (error) {
       console.log(error);
     }
@@ -51,11 +81,15 @@ export default function PointOfSalePage() {
   }
 
 
-
+  const [nextPage, setNextPage] = useState<string | null>(null);
+  const [prevPage, setPrevPage] = useState<string | null>(null);
+  const [totalPages, setTotalPage] = useState<number>(1)
+  const [currentPage, setCurrentPage] = useState<number>(1)
   const [products, setProducts] = useState<Product[]>([])
+
   const [cart, setCart] = useState<CartItem[]>([])
   const [loading, setLoading] = useState<boolean>(false);
-  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [transactions, addTransaction] = useState<LocalTransaction[]>([])
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showQRModal, setShowQRModal] = useState(false)
   const [showGCashModal, setShowGCashModal] = useState(false)
@@ -130,7 +164,7 @@ export default function PointOfSalePage() {
     }
   }
 
-  const completeCashPayment = () => {
+  const completeCashPayment = async () => {
     if (cashAmount === "" || Number(cashAmount) < total) {
       alert("Insufficient payment amount")
       return
@@ -139,8 +173,20 @@ export default function PointOfSalePage() {
     const changeAmount = Number(cashAmount) - total
     setChange(changeAmount)
 
+    for (const item of cart) {
+      await createTransaction({
+        transaction_id: transactions.length + 1,
+        items: item.id,  // Django expects ForeignKey (product ID)
+        total: item.qty,
+        price: item.price * item.qty,
+        paymentMethod: "Cash",
+        cashAmount: Number(cashAmount),
+        changes: changeAmount,  // Django model uses 'changes' not 'change'
+      })
+    }
+
     const newTransaction = {
-      id: transactions.length + 1,
+      transaction_id: transactions.length + 1,
       date: new Date().toLocaleString(),
       items: [...cart],
       total: total,
@@ -149,7 +195,7 @@ export default function PointOfSalePage() {
       change: changeAmount,
     }
 
-    setTransactions([newTransaction, ...transactions])
+    addTransaction([newTransaction, ...transactions])
     setCart([])
     setShowPaymentModal(false)
     setCashAmount("")
@@ -158,17 +204,42 @@ export default function PointOfSalePage() {
   }
 
   const confirmQRPayment = () => {
+
+    if (cashAmount === "" || Number(cashAmount) < total) {
+      alert("Insufficient payment amount")
+      return
+    }
+
     setQRConfirmed(true)
-    setTimeout(() => {
+    const changeAmount = Number(cashAmount) - total
+    setChange(changeAmount)
+
+    setTimeout(async () => {
+
+      for (const item of cart) {
+        await createTransaction({
+          transaction_id: transactions.length + 1,
+          items: item.id,  // Django expects ForeignKey (product ID)
+          total: item.qty,
+          price: item.price * item.qty,
+          paymentMethod: "QR",
+          cashAmount: 0,
+          changes: changeAmount,  // Django model uses 'changes' not 'change'
+        })
+      }
+
       const newTransaction = {
-        id: transactions.length + 1,
+        transaction_id: transactions.length + 1,
         date: new Date().toLocaleString(),
         items: [...cart],
         total: total,
-        paymentMethod: "QR Code",
+        paymentMethod: "Qr",
+        cashAmount: Number(cashAmount),
+        change: changeAmount,
       }
 
-      setTransactions([newTransaction, ...transactions])
+
+      addTransaction([newTransaction, ...transactions])
       setCart([])
       setShowPaymentModal(false)
       setShowQRModal(false)
@@ -179,22 +250,53 @@ export default function PointOfSalePage() {
 
   const confirmGCashPayment = () => {
     setGCashConfirmed(true)
-    setTimeout(() => {
+    if (cashAmount === "" || Number(cashAmount) < total) {
+      alert("Insufficient payment amount")
+      return
+    }
+    const changeAmount = Number(cashAmount) - total
+    setChange(changeAmount)
+    setTimeout(async () => {
+
+      for (const item of cart) {
+        await createTransaction({
+          transaction_id: transactions.length + 1,
+          items: item.id,  // Django expects ForeignKey (product ID)
+          total: item.qty,
+          price: item.price * item.qty,
+          paymentMethod: "GCash",
+          cashAmount: Number(cashAmount),
+          changes: changeAmount,  // Django model uses 'changes' not 'change'
+        })
+      }
       const newTransaction = {
-        id: transactions.length + 1,
+        transaction_id: transactions.length + 1,
         date: new Date().toLocaleString(),
         items: [...cart],
         total: total,
         paymentMethod: "GCash",
+        cashAmount: Number(cashAmount),
+        change: changeAmount,
       }
 
-      setTransactions([newTransaction, ...transactions])
+      addTransaction([newTransaction, ...transactions])
       setCart([])
       setShowPaymentModal(false)
       setShowGCashModal(false)
       setGCashConfirmed(false)
       alert(`Payment received via GCash! ₱${total.toLocaleString()}`)
     }, 1500)
+  }
+
+  const createTransaction = async (data: ApiTransaction) => {
+    const response = await fetch('http://127.0.0.1:8000/api/transaction/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+    return await response.json()
   }
 
   const totalRevenue = transactions.reduce((sum, t) => sum + t.total, 0)
@@ -251,8 +353,7 @@ export default function PointOfSalePage() {
                     </thead>
                     <tbody>
                       {transactions.map((transaction) => (
-                        <tr key={transaction.id} className="border-b border-card-border hover:bg-background/50">
-                          <td className="px-6 py-4 text-sm text-foreground">{transaction.date}</td>
+                        <tr key={transaction.transaction_id} className="border-b border-card-border hover:bg-background/50">
                           <td className="px-6 py-4 text-sm text-muted-foreground">
                             {transaction.items.map((item) => item.name).join(", ")}
                           </td>
@@ -293,6 +394,22 @@ export default function PointOfSalePage() {
                         <p className="text-sm text-green-500 font-semibold mt-2">₱{product.price.toLocaleString()}</p>
                       </div>
                     ))}
+                  </div>
+                  <div className="flex justify-between items-center mt-4">
+                    <button
+                      onClick={prevPage ? () => fetchProducts(prevPage) : () => { }}
+                      disabled={!prevPage}
+                      className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      onClick={nextPage ? () => fetchProducts(nextPage) : () => { }}
+                      disabled={!nextPage}
+                      className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Next
+                    </button>
                   </div>
                 </Card>
               </div>

@@ -40,7 +40,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
 
     "member_portal",
-    #"pos",
+    "pos_portal",
 
     "corsheaders",
 ]
